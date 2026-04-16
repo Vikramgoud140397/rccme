@@ -122,7 +122,7 @@
     na_w <- is.na(w_mat)
     na_se <- is.na(w_se_mat)
 
-    if (!identical(na_w, na_se)) {
+    if (!identical(unname(na_w), unname(na_se))) {
       stop("Missingness in `w_mat` and `w_se_mat` must match.")
     }
 
