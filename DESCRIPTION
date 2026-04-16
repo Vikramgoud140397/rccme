@@ -1,6 +1,6 @@
 Package: rccme
 Title: Regression Calibration for Classical Measurement Error
-Version: 0.0.1.9001
+Version: 0.0.1.9002
 Authors@R: c(
     person("James", "Uanhoro", , "james.uanhoro@gmail.com", role = c("aut", "cre")),
     person("Nivedita", "Bhaktha", role = "ctb")
