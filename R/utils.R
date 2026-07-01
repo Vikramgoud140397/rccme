@@ -124,7 +124,9 @@
 
     if (!identical(unname(na_w), unname(na_se))) {
       stop("Missingness in `w_mat` and `w_se_mat` must match.")
-    }
+
+      
+          }
 
     if (any(na_w)) {
       w_mat[na_w] <- 0
@@ -321,9 +323,6 @@
 #' @inheritParams .score_mvn
 #' @return Negative log-likelihood for MVN
 #' @keywords internal
-#' @note This function is retained for reference. The optimisation in
-#'   `.optim_cov_fiml` now uses the faster C++ implementation
-#'   `negll_fiml_cpp` via RcppArmadillo (see `src/fiml_cpp.cpp`).
 .negll_fiml <- function(theta, x_mat) {
   n <- nrow(x_mat)
   p <- ncol(x_mat)
@@ -371,9 +370,6 @@
 #' @param x_mat (matrix) matrix with missing elements
 #' @return Gradients of mean and covariance
 #' @keywords internal
-#' @note This function is retained for reference. The optimisation in
-#'   `.optim_cov_fiml` now uses the faster C++ implementation
-#'   `score_mvn_cpp` via RcppArmadillo (see `src/fiml_cpp.cpp`).
 .score_mvn <- function(theta, x_mat) {
   # https://people.csail.mit.edu/jrennie/writing/multivariateNormal.pdf
   n <- nrow(x_mat)
@@ -430,11 +426,6 @@
 #' @inheritParams .score_mvn
 #' @return Result from optim
 #' @keywords internal
-#' @details This function uses C++ implementations of the negative
-#'   log-likelihood (`negll_fiml_cpp`) and its gradient (`score_mvn_cpp`)
-#'   via RcppArmadillo for improved performance. Benchmarking shows
-#'   approximately 30x speedup over the pure R implementation on
-#'   typical inputs. The C++ implementations are in `src/fiml_cpp.cpp`.
 .optim_cov_fiml <- function(x_mat) {
   p <- ncol(x_mat)
   x_mat_s <- scale(x_mat)
@@ -448,15 +439,12 @@
   diag(init_chol) <- log(diag(init_chol))
   init_pars <- c(
     rep(0, p),
-    t(init_chol)[lower.tri(init_chol, diag = TRUE)]
+    init_chol[lower.tri(init_chol, diag = TRUE)]
   )
-  # Use C++ implementations of the negative log-likelihood and gradient
-  # for improved performance (see src/fiml_cpp.cpp). These replace the
-  # original pure R functions .negll_fiml and .score_mvn.
   ret <- stats::optim(
     init_pars,
-    function(theta) negll_fiml_cpp(theta, x_mat_s),
-    function(theta) score_mvn_cpp(theta, x_mat_s),
+    function(theta) rccme:::negll_fiml_cpp(theta, x_mat_s),
+    function(theta) rccme:::score_mvn_cpp(theta, x_mat_s),
     method = "BFGS",
     control = list(maxit = 1e3, pgtol = 1e-6)
   )
@@ -519,3 +507,5 @@
 
   cov_xy / n
 }
+
+
