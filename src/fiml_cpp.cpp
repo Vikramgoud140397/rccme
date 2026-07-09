@@ -3,40 +3,40 @@
 using namespace Rcpp;
 using namespace arma;
 
-// theta = [mu_1 ... mu_p | L_11 L_21 L_22 L_31 ... L_pp]
-// diagonal of L is on log scale
+// theta = [mu_1 ... mu_p | l_11 l_21 l_22 l_31 ... l_pp]
+// diagonal of l is on log scale
 static mat chol_to_sigma(const vec& theta, int p) {
-  mat L(p, p, fill::zeros);
+  mat l(p, p, fill::zeros);
   int idx = p;
   for (int j = 0; j < p; ++j) {
     for (int i = j; i < p; ++i) {
-      L(i, j) = theta(idx++);
+      l(i, j) = theta(idx++);
     }
-    L(j, j) = std::exp(L(j, j)) + 1e-6;
+    l(j, j) = std::exp(l(j, j)) + 1e-6;
   }
-  return L * L.t();
+  return l * l.t();
 }
 
-// returns L rather than L L'
-static mat chol_to_L(const vec& theta, int p) {
-  mat L(p, p, fill::zeros);
+// returns l rather than l l'
+static mat chol_to_l(const vec& theta, int p) {
+  mat l(p, p, fill::zeros);
   int idx = p;
   for (int j = 0; j < p; ++j) {
     for (int i = j; i < p; ++i) {
-      L(i, j) = theta(idx++);
+      l(i, j) = theta(idx++);
     }
-    L(j, j) = std::exp(L(j, j)) + 1e-6;
+    l(j, j) = std::exp(l(j, j)) + 1e-6;
   }
-  return L;
+  return l;
 }
 
-static std::vector<uvec> make_groups(const mat& X) {
-  int n = X.n_rows;
+static std::vector<uvec> make_groups(const mat& x_mat) {
+  int n = x_mat.n_rows;
   std::map<std::string, std::vector<int>> grp_map;
   for (int i = 0; i < n; ++i) {
-    std::string key(X.n_cols, '0');
-    for (int j = 0; j < (int)X.n_cols; ++j)
-      if (!std::isnan(X(i, j))) key[j] = '1';
+    std::string key(x_mat.n_cols, '0');
+    for (int j = 0; j < (int)x_mat.n_cols; ++j)
+      if (!std::isnan(x_mat(i, j))) key[j] = '1';
     grp_map[key].push_back(i);
   }
   std::vector<uvec> groups;
@@ -50,26 +50,26 @@ static std::vector<uvec> make_groups(const mat& X) {
   return groups;
 }
 
-static uvec obs_cols(const mat& X, int row) {
+static uvec obs_cols(const mat& x_mat, int row) {
   std::vector<uword> cols;
-  for (int j = 0; j < (int)X.n_cols; ++j)
-    if (!std::isnan(X(row, j))) cols.push_back(j);
+  for (int j = 0; j < (int)x_mat.n_cols; ++j)
+    if (!std::isnan(x_mat(row, j))) cols.push_back(j);
   uvec out(cols.size());
   for (int i = 0; i < (int)cols.size(); ++i) out(i) = cols[i];
   return out;
 }
 
 // [[Rcpp::export]]
-double negll_fiml_cpp(const arma::vec& theta, const arma::mat& X) {
-  int p = X.n_cols;
+double negll_fiml_cpp(const arma::vec& theta, const arma::mat& x_mat) {
+  int p = x_mat.n_cols;
   vec mu = theta.head(p);
   mat sigma = chol_to_sigma(theta, p);
-  auto groups = make_groups(X);
+  auto groups = make_groups(x_mat);
   double nll = 0.0;
   for (auto& idx : groups) {
-    uvec cols = obs_cols(X, idx(0));
+    uvec cols = obs_cols(x_mat, idx(0));
     if (cols.is_empty()) continue;
-    mat x_i = X.submat(idx, cols);
+    mat x_i = x_mat.submat(idx, cols);
     vec mu_i = mu(cols);
     mat sigma_i = sigma.submat(cols, cols);
     sigma_i.diag() += 1e-8;
@@ -86,18 +86,18 @@ double negll_fiml_cpp(const arma::vec& theta, const arma::mat& X) {
 }
 
 // [[Rcpp::export]]
-arma::vec score_mvn_cpp(const arma::vec& theta, const arma::mat& X) {
-  int p = X.n_cols;
+arma::vec score_mvn_cpp(const arma::vec& theta, const arma::mat& x_mat) {
+  int p = x_mat.n_cols;
   vec mu = theta.head(p);
-  mat L = chol_to_L(theta, p);
-  mat sigma = L * L.t();
+  mat l = chol_to_l(theta, p);
+  mat sigma = l * l.t();
   vec grad_mu(p, fill::zeros);
   mat grad_sigma(p, p, fill::zeros);
-  auto groups = make_groups(X);
+  auto groups = make_groups(x_mat);
   for (auto& idx : groups) {
-    uvec cols = obs_cols(X, idx(0));
+    uvec cols = obs_cols(x_mat, idx(0));
     if (cols.is_empty()) continue;
-    mat x_i = X.submat(idx, cols);
+    mat x_i = x_mat.submat(idx, cols);
     vec mu_i = mu(cols);
     mat sigma_i = sigma.submat(cols, cols);
     mat c_inv = inv_sympd(sigma_i);
@@ -116,10 +116,10 @@ arma::vec score_mvn_cpp(const arma::vec& theta, const arma::mat& X) {
   }
   // symmetrise
   grad_sigma = 0.5 * (grad_sigma + grad_sigma.t());
-  // chain rule: sigma = L L'
-  mat grad_l = 2.0 * grad_sigma * L;
+  // chain rule: sigma = l l'
+  mat grad_l = 2.0 * grad_sigma * l;
   for (int j = 0; j < p; ++j)
-    grad_l(j, j) *= (L(j, j) - 1e-6);
+    grad_l(j, j) *= (l(j, j) - 1e-6);
   // pack lower triangle, column-major
   int n_pars = p + p * (p + 1) / 2;
   vec grad(n_pars, fill::zeros);
