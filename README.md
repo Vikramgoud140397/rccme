@@ -26,11 +26,12 @@ downstream regression models.
 
 ### Windows users
 
-Windows users need to install
-[Rtools](https://cran.r-project.org/bin/windows/Rtools/) before
-installing rccme. Rtools provides the C++ compiler required to build
-the package from source. Download the version matching your R version
-from the link above and follow the installer instructions.
+Windows users installing via the r-universe link below do not
+need Rtools. The package installs as a pre-built binary.
+Rtools is only needed if installing from source, for example
+via `devtools::install_github()`.
+
+
 
 
 You can install the latest version of rccme with:
