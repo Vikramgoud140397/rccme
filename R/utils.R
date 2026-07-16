@@ -469,7 +469,9 @@
   diag(d_mat) <- attr(x_mat_s, "scaled:scale")
   init_cov <- stats::cov(x_mat_s, use = "p")
   init_cov[is.na(init_cov)] <- 0
-  diag(init_cov) <- diag(init_cov) + 1e-2
+  eig <- eigen(init_cov)
+  eig$values <- pmax(eig$values, 1e-6)
+  init_cov <- eig$vectors %*% diag(eig$values) %*% t(eig$vectors)
   init_chol <- chol(init_cov)
   diag(init_chol) <- log(diag(init_chol))
   init_pars <- c(
