@@ -32,8 +32,6 @@ Rtools is only needed if installing from source, for example
 via `devtools::install_github()`.
 
 
-
-
 You can install the latest version of rccme with:
 
 ``` r
